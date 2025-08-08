@@ -44,10 +44,9 @@ The work combines time series analysis, Markowitz portfolio theory, risk metrics
 ## Repository Structure
 ```
 
-├── data/              # Raw and processed stock return data
-├── src/               # Analysis scripts (portfolio construction, VaR/ES, PCA, copulas)
-├── results/           # Output tables, plots, and model results
-├── report/            # Final project report (PDF)
+├── data/              # Raw and processed stock return data folder
+├── fin_proj_datafinal.Rmd/               # Analysis script RMD file (portfolio construction, VaR/ES, PCA, copulas)
+├── final-report-writeup.pdf/            # Final project report (PDF)
 └── README.md          # Project description
 ```
 
