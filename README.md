@@ -43,7 +43,7 @@ The work combines time series analysis, Markowitz portfolio theory, risk metrics
 
 ## Repository Structure
 ```
-/
+
 ├── data/              # Raw and processed stock return data
 ├── src/               # Analysis scripts (portfolio construction, VaR/ES, PCA, copulas)
 ├── results/           # Output tables, plots, and model results
