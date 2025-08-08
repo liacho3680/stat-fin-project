@@ -1,0 +1,631 @@
+---
+title: "fin_project"
+author: "Lia Cho (lc3683) & Andre Liu (azl2113)"
+date: "2023-04-24"
+output:
+  word_document: default
+---
+
+```{r, packages}
+library(tidyverse)
+library(zoo)
+library(xts)
+library(moments)
+library(gt)
+library(gtExtras)
+library(ggplot2)
+library(quadprog)
+library(tseries)
+```
+
+```{r, data}
+JNJ <- read_csv("JNJ.csv")
+JNJ <-  JNJ %>% mutate(JNJ = `Adj Close`) %>% select(Date, JNJ)
+ABBV <- read_csv("ABBV.csv")
+ABBV <-  ABBV %>% mutate(ABBV = `Adj Close`) %>% select(Date, ABBV)
+AMZN <- read_csv("AMZN.csv")
+AMZN <-  AMZN %>% mutate(AMZN = `Adj Close`) %>% select(Date, AMZN)
+DIS <- read_csv("DIS.csv")
+DIS <-  DIS %>% mutate(DIS = `Adj Close`) %>% select(Date, DIS)
+GE <- read_csv("GE.csv")
+GE <-  GE %>% mutate(GE = `Adj Close`) %>% select(Date, GE)
+GOOG <- read_csv("GOOG.csv")
+GOOG <-  GOOG %>% mutate(GOOG = `Adj Close`) %>% select(Date, GOOG)
+INTU <- read_csv("INTU.csv")
+INTU <-  INTU %>% mutate(INTU = `Adj Close`) %>% select(Date, INTU)
+KO <- read_csv("KO.csv")
+KO <-  KO %>% mutate(KO = `Adj Close`) %>% select(Date, KO)
+MSFT <- read_csv("MSFT.csv")
+MSFT <-  MSFT %>% mutate(MSFT = `Adj Close`) %>% select(Date, MSFT)
+NFLX <- read_csv("NFLX.csv")
+NFLX <-  NFLX %>% mutate(NFLX = `Adj Close`) %>% select(Date, NFLX)
+SBUX <- read_csv("SBUX.csv")
+SBUX <-  SBUX %>% mutate(SBUX = `Adj Close`) %>% select(Date, SBUX)
+TSLA <- read_csv("TSLA.csv")
+TSLA <-  TSLA %>% mutate(TSLA = `Adj Close`) %>% select(Date, TSLA)
+SONY <- read_csv("SONY.csv")
+SONY <-  SONY %>% mutate(SONY = `Adj Close`) %>% select(Date, SONY)
+BMY <- read_csv("BMY.csv")
+BMY <-  BMY %>% mutate(BMY = `Adj Close`) %>% select(Date, BMY)
+CRM <- read_csv("CRM.csv")
+CRM <-  CRM %>% mutate(CRM = `Adj Close`) %>% select(Date, CRM)
+SNP <- read_csv("HistoricalData_1683323059274.csv")
+SNP <- SNP %>% mutate(Date = mdy(Date), SNP = `Close/Last`) %>% select(Date, SNP)
+
+raw_stock <- list(JNJ, ABBV, AMZN, DIS, GE, GOOG, INTU, KO, MSFT, NFLX, SBUX, TSLA, SONY, BMY, CRM, SNP)
+raw_stock <- raw_stock %>% reduce(full_join, by='Date')
+```
+
+
+```{r, wrangling}
+asset_long <- raw_stock %>%
+  pivot_longer(-Date, names_to = "asset", values_to = "close")
+
+asset_long_monthly <- asset_long %>%
+  mutate(year = lubridate::year(Date), month = lubridate::month(Date))
+
+asset_dailyreturns <- asset_long_monthly %>%
+  group_by(asset, year, month) %>%
+  mutate(daily_return = (close - lag(close)) / lag(close) * 100) %>% drop_na() %>% select(year, month, asset, daily_return, Date)
+
+returns <- asset_dailyreturns %>%
+  group_by(asset, year, month) %>% 
+  mutate(return = mean(daily_return)) %>% filter(year > 2014 & year < 2020) %>% select(-daily_return)
+
+monthly_returns = distinct(returns, asset, year, month, return)
+
+returns <- monthly_returns %>%
+  pivot_wider(names_from = asset, values_from = return)
+
+returns$date <- as.yearmon(paste(returns$year, returns$month), "%Y %m")
+
+```
+
+```{r, export}
+write.csv(returns, file = "monthlyreturns.csv")
+```
+
+```{r, descriptivestats}
+rf = .0094
+assets = c("JNJ", "ABBV", "AMZN", "DIS", "GE", "GOOG", "INTU", "KO", "MSFT", "NFLX", "SBUX", "TSLA", "SONY", "BMY", "CRM", "SNP")
+mean_return = round(colMeans(returns[,3:18])*12, digits = 4)
+std_dev = round(sapply(returns[,3:18], sd)*sqrt(12), digits = 4)
+sharpe = round((mean_return - rf)/std_dev, digits = 4)
+skewness_coef = round(skewness(returns[,3:18]), digits = 4)
+kurtosis_coef = round(kurtosis(returns[,3:18]), digits = 4)
+beta = round(cov(returns[,3:18], returns$SNP)/var(returns$SNP), digits = 4)
+
+esti = data.frame(assets, mean_return, std_dev, sharpe, skewness_coef, kurtosis_coef, beta)
+esti %>% gt() %>% gt_theme_538() %>% tab_header(title = "Descriptive Statistics of the Assets & S&P 500")
+
+hist(returns$JNJ)
+hist(returns$ABBV)
+hist(returns$AMZN)
+hist(returns$DIS)
+hist(returns$GE)
+hist(returns$GOOG)
+hist(returns$INTU)
+hist(returns$KO)
+hist(returns$MSFT)
+hist(returns$NFLX)
+hist(returns$SBUX)
+hist(returns$TSLA)
+hist(returns$SONY)
+hist(returns$BMY)
+hist(returns$CRM)
+hist(returns$SNP)
+
+adf.test(returns$JNJ)
+adf.test(returns$ABBV)
+adf.test(returns$AMZN)
+adf.test(returns$DIS)
+adf.test(returns$GE)
+adf.test(returns$GOOG)
+adf.test(returns$INTU)
+adf.test(returns$KO)
+adf.test(returns$MSFT)
+adf.test(returns$NFLX)
+adf.test(returns$SBUX)
+adf.test(returns$TSLA)
+adf.test(returns$SONY)
+adf.test(returns$BMY)
+adf.test(returns$CRM)
+adf.test(returns$SNP)
+
+# AMZN has the highest Sharpe slope at 
+#other than the S&P at 0.5704 and KO at 0.6060 and JNJ at 0.7023, the standard deviation is around 1. 
+#other than NFLX at 2, the rest of the assets and the S&P means is around 1 or below 1
+```
+
+```{r, descrstat}
+cumulative <- returns %>% mutate(
+  cumrJNJ = cumprod(1 + JNJ), 
+  cumrABBV = cumprod(1 + ABBV), 
+  cumrAMZN = cumprod(1 + AMZN), 
+  cumrDIS = cumprod(1 + DIS), 
+  cumrGE = cumprod(1 + GE), 
+  cumrGOOG = cumprod(1 + GOOG), 
+  cumrINTU = cumprod(1 + INTU), 
+  cumrKO = cumprod(1 + KO), 
+  cumrMSFT = cumprod(1 + MSFT), 
+  cumrNFLX = cumprod(1 + NFLX), 
+  cumrSBUX = cumprod(1 + SBUX), 
+  cumrTSLA = cumprod(1 + TSLA), 
+  cumrSONY = cumprod(1 + SONY), 
+  cumrBMY = cumprod(1 + BMY), 
+  cumrCRM = cumprod(1 + CRM), 
+  cumrSNP = cumprod(1 + SNP))
+
+(p1 = ggplot(cumulative, aes(x = date)) +
+  geom_line(aes(y = cumrJNJ, color = "red")) + 
+  labs(x = "Date", y = "Monthly Return", title = "Equity Curve of JNJ"))
+
+(p2 = ggplot(cumulative, aes(x = date)) +
+  geom_line(aes(y = cumrABBV, color = "blue")) + 
+  labs(x = "Date", y = "Monthly Return", title = "Equity Curve of ABBV"))
+
+(p3 = ggplot(cumulative, aes(x = date)) +
+  geom_line(aes(y = cumrAMZN, color = "green")) + 
+  labs(x = "Date", y = "Monthly Return", title = "Equity Curve of AMZN"))
+
+(p4 = ggplot(cumulative, aes(x = date)) +
+  geom_line(aes(y = cumrDIS, color = "purple")) + 
+  labs(x = "Date", y = "Monthly Return", title = "Equity Curve of DIS"))
+
+(p5 = ggplot(cumulative, aes(x = date)) +
+  geom_line(aes(y = cumrGE, color = "aquamarine")) + 
+  labs(x = "Date", y = "Monthly Return", title = "Equity Curve of GE"))
+
+(p6 = ggplot(cumulative, aes(x = date)) +
+  geom_line(aes(y = cumrGOOG, color = "yellow")) + 
+  labs(x = "Date", y = "Monthly Return", title = "Equity Curve of GOOG"))
+
+(p7 = ggplot(cumulative, aes(x = date)) +
+  geom_line(aes(y = cumrINTU, color = "orange")) + 
+  labs(x = "Date", y = "Monthly Return", title = "Equity Curve of INTU"))
+
+(p8 = ggplot(cumulative, aes(x = date)) +
+  geom_line(aes(y = cumrKO, color = "pink")) + 
+  labs(x = "Date", y = "Monthly Return", title = "Equity Curve of KO"))
+
+(p9 = ggplot(cumulative, aes(x = date)) +
+  geom_line(aes(y = cumrMSFT, color = "darkgrey")) + 
+  labs(x = "Date", y = "Monthly Return", title = "Equity Curve of MSFT"))
+
+(p10=ggplot(cumulative, aes(x = date)) +
+  geom_line(aes(y = cumrNFLX, color = "brown")) + 
+  labs(x = "Date", y = "Monthly Return", title = "Equity Curve of NFLX"))
+
+(p11=ggplot(cumulative, aes(x = date)) +
+  geom_line(aes(y = cumrSBUX, color = "goldenrod")) + 
+  labs(x = "Date", y = "Monthly Return", title = "Equity Curve of SBUX"))
+
+(p12=ggplot(cumulative, aes(x = date)) +
+  geom_line(aes(y = cumrTSLA, color = "darkolivegreen")) + 
+  labs(x = "Date", y = "Monthly Return", title = "Equity Curve of TSLA"))
+
+(p13=ggplot(cumulative, aes(x = date)) +
+  geom_line(aes(y = cumrSONY, color = "deeppink2")) + 
+  labs(x = "Date", y = "Monthly Return", title = "Equity Curve of SONY"))
+
+(p14=ggplot(cumulative, aes(x = date)) +
+  geom_line(aes(y = cumrBMY, color = "salmon")) + 
+  labs(x = "Date", y = "Monthly Return", title = "Equity Curve of BMY"))
+
+(p15=ggplot(cumulative, aes(x = date)) +
+  geom_line(aes(y = cumrCRM, color = "lightskyblue")) + 
+  labs(x = "Date", y = "Monthly Return", title = "Equity Curve of CRM"))
+
+(p16=ggplot(cumulative, aes(x = date)) +
+  geom_line(aes(y = cumrSNP, color = "magenta")) + 
+  labs(x = "Date", y = "Monthly Return", title = "Equity Curve of SNP"))
+
+#require(gridExtra)
+#grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, ncol=1)
+
+
+```
+
+```{r, mvpport}
+cov_mat = cov(returns[3:17])
+inv_cov_mat <- solve(cov_mat)
+ones <- rep(1, ncol(returns[,3:17]))
+(var_weights <- inv_cov_mat %*% ones / sum(inv_cov_mat %*% ones))
+(exp_mvp = round(sum(var_weights * colMeans(returns[,3:17])), digits = 4))*12
+(sd_mvp = round(sqrt(t(var_weights) %*% cov_mat %*% var_weights), digits = 4))
+
+VaR <- -quantile(returns[,3:17], .05, na.rm = TRUE) * sqrt(1)
+VaR*100000
+
+#shortsold
+perc = qnorm(0.05)
+#time_horizon = 1 month
+(VaR_sold <- -100000 * (exp_mvp + sd_mvp * perc))
+(ES <- -((dnorm(qnorm(0.05)) / 0.05) * sd_mvp + exp_mvp) * 100000)
+
+(indiv_var = qnorm(0.05, mean = mean_return/12, sd = std_dev/sqrt(12))*-100000)
+
+
+
+v1 = data.frame(asset = assets[1:15], 'VaR weights' = var_weights, VaR.indiv = indiv_var[1:15])
+v1 %>% gt() %>% gt_theme_538() %>% tab_header(title = "MVP Statistics: Weights")
+```
+
+```{r, message=F,warning=F}
+library(formatR)
+```
+
+
+## Reading the monthly returns
+
+```{r eval=T, tidy=T, echo=T, warning=F}
+df = read.csv("monthlyreturns.csv")
+df = subset(df, select = -X )
+```
+
+
+## Portfolio Theory
+
+```{r, descriptivestats}
+rf = .0094
+assets = c("JNJ", "ABBV", "AMZN", "DIS", "GE", "GOOG", "INTU", "KO", "MSFT", "NFLX", "SBUX", "TSLA", "SONY", "BMY", "CRM", "SNP")
+mean_return = round(colMeans(df[,3:17])*12, digits = 4)
+std_dev = round(sapply(df[,3:17], sd)*sqrt(12), digits = 4)
+sharpe = round((mean_return - rf)/std_dev, digits = 4)
+#skewness_coef = round(skewness(df[,3:17]), digits = 4)
+#kurtosis_coef = round(kurtosis(df[,3:17]), digits = 4)
+#beta = round(cov(df[,3:17], df$SNP)/var(df$SNP), digits = 4)
+
+#esti = data.frame(assets, mean_return, std_dev, sharpe, skewness_coef, kurtosis_coef, beta)
+#esti %>% gt() %>% gt_theme_538() %>% tab_header(title = "Descriptive Statistics of the Assets & S&P 500")
+
+hist(df$JNJ)
+hist(df$ABBV)
+hist(df$AMZN)
+hist(df$DIS)
+hist(df$GE)
+hist(df$GOOG)
+
+# asset_returns_long %>% 
+#   ggplot(aes(x = df, fill = asset)) + 
+#   geom_histogram(alpha = 0.25, binwidth = .01) + 
+#   facet_wrap(~asset) + 
+#   ggtitle("Monthly Returns Since 2005")
+
+# AMZN has the highest Sharpe slope at 
+#other than the S&P at 0.5704 and KO at 0.6060 and JNJ at 0.7023, the standard deviation is around 1. 
+#other than NFLX at 2, the rest of the assets and the S&P means is around 1 or below 1
+```
+
+```{r, mvpport}
+library(dplyr)
+library(gt)
+cov_mat = cov(df[3:17])
+inv_cov_mat <- solve(cov_mat)
+ones <- rep(1, ncol(df[,3:17]))
+(var_weights <- inv_cov_mat %*% ones / sum(inv_cov_mat %*% ones))
+(exp_mvp = round(sum(var_weights * colMeans(df[,3:17])), digits = 4))*12
+(sd_mvp = round(sqrt(t(var_weights) %*% cov_mat %*% var_weights), digits = 4))
+
+VaR <- -quantile(df[,3:17], .05, na.rm = TRUE) * sqrt(1)
+VaR*100000
+
+#shortsold
+perc = qnorm(0.05)
+#time_horizon = 1 month
+(VaR_sold <- -100000 * (exp_mvp + sd_mvp * perc))
+(ES <- ((dnorm(qnorm(0.05)) / 0.05) * sd_mvp - exp_mvp) * 100000)
+
+(indiv_var = qnorm(0.05, mean = mean_return/12, sd = std_dev/sqrt(12))*-100000)
+
+v1 = data.frame(asset = assets[1:15], 'VaR weights' = var_weights, VaR.indiv = indiv_var[1:15])
+v1 %>% gt()  %>% tab_header(title = "MVP Statistics: Weights")
+```
+
+
+
+```{r eval=T, tidy=T, echo=T, warning=F}
+# portfolio cont.
+mean_vect <- colMeans(df[,3:17])
+cov_mat <- cov(df[,3:17])
+sd_vect <- sqrt(diag(cov_mat))
+library(quadprog)
+
+n = 15
+A = cbind(rep(1,n), mean_vect, diag(1, nrow=n),-diag(1,nrow=n))
+mu = seq(min(mean_vect) + 0.0001, max(mean_vect) - 0.0001, length = nrow(df))
+st.d = mu
+weights = matrix(0, nrow=nrow(df), ncol=n)
+
+for(i in 1:nrow(df)){
+  result = solve.QP(Dmat=cov_mat, dvec=rep(0,n), A=A,
+                    c(1,mu[i], rep(-0.1,n), rep(-0.5,n)), meq=2)
+  st.d[i] = sqrt(2*result$value)
+  weights[i,] = result$solution
+}
+
+plot(st.d, mu, type="l", xlim=c(0,0.4),ylim=c(0,0.2), main = "Efficient Portfolio Frontier")
+mu.f = 0.045
+sharpe = (mu-mu.f)/st.d
+line1 = (sharpe == max(sharpe)) 
+weights[line1,] #tangency portfolio weights
+weights[line2,] #MVP weights
+lines(c(0,st.d[line1]),c(mu.f,mu[line1]),col="blue",lwd=3)
+points(st.d[line1],mu[line1],col="black",cex=3,pch=18)
+line2 = (st.d == min(st.d))
+points(st.d[line2],mu[line2],col="black",cex=3,pch=18)
+line3 = (mu > mu[line2])
+lines(st.d[line3],mu[line3],type="l",xlim=c(0,.25),
+      ylim=c(0,0.3), col="red", lwd=3)
+
+plot_df <- data.frame(st.d = st.d, mu = mu)
+plot_eff_df <- data.frame(st.d = st.d[line3], mu = mu[line3])
+
+```
+
+
+## Asset Management
+
+```{r eval=T, tidy=T, echo=T, warning=F}
+# asset management
+#minimum variance portfolio subject to 6% return; no short sales
+
+asset.names <- colnames(df[,3:17])
+er <- mean_vect
+N <- length(er)
+cov.mat <- as.matrix(cov_mat)
+target.return = 0.06
+
+Dmat <- 2 * cov.mat
+dvec <- rep.int(0, N)
+Amat <- cbind(rep(1, N), er, diag(1, N))
+bvec <- c(1, target.return, rep(0, N))
+result <- quadprog::solve.QP(Dmat = Dmat, dvec = dvec, 
+  Amat = Amat, bvec = bvec, meq = 2)
+w <- round(result$solution, 6)
+
+names(w) <- asset.names
+er.port <- crossprod(er, w)
+sd.port <- sqrt(w %*% cov.mat %*% w)
+ans <- list(call = call, er = as.vector(er.port), sd = as.vector(sd.port), 
+  weights = w)
+class(ans) <- "portfolio"
+ans
+
+
+```
+```{r eval=T, tidy=T, echo=T, warning=F}
+# asset management, cont.
+# tangency portfolio with risk free subject to 6% return
+
+#weights of assets in tangency
+mu_free = 0.045
+omega_inv = solve(cov.mat)
+ones = rep(1, 15)
+mu = mean_vect
+excess_returns = mu - mu_free*ones
+upper = omega_inv%*%excess_returns
+lower = as.numeric(t(ones)%*%upper)
+weight_vector = upper[,1]/lower
+
+#expected return given, the weights put in the tangency portfolio and the risk free asset
+exp_return = 0.06
+mu_tangency = as.numeric(crossprod(weight_vector,mu))
+x_t = (exp_return - mu_free)/(mu_tangency - mu_free)
+x_t
+1-x_t
+
+```
+
+```{r eval=T, tidy=T, echo=T, warning=F}
+#getting portfolio VaR and ES
+
+#MVP
+#VAR
+-100000*(ans$er + ans$sd*qnorm(0.05))
+#ES
+100000*(-ans$er + ans$sd*(dnorm(qnorm(0.05))/0.05))
+
+#tangency
+#VAR
+100000*(crossprod((weights[line1,] * x_t), mean_vect) + 1.054259*0.045 + .0167*qnorm(0.05))
+#ES
+100000*(-crossprod((weights[line1,] * x_t), mean_vect) + 1.054259*0.045 +  .0167*(dnorm(qnorm(0.05))/0.05))
+```
+
+
+## Principal Components Analysis
+
+The sample pairwise correlation matrix and heatmap of the assets are given below:
+
+```{r eval=T, tidy=T, echo=T, warning=F}
+# 5 PCA
+library(reshape2)
+library(ggplot2)
+# sample correlation matrix
+cor_df = round(cor(df[,3:17]), 2)
+cor_df
+# melting the dataframe for the heatmap
+melted_cor = melt(cor_df)
+
+#create correlation heatmap
+ggplot(data = melted_cor, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile() +
+  geom_text(aes(Var2, Var1, label = value), size = 5) +
+  scale_fill_gradient2(low = "orange", high = "blue",
+                       limit = c(-1,1), name="Correlation") +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        panel.background = element_blank())
+```
+
+From the above sample correlation heatmap, it seems to appear that the three most highly correlated pairs of stocks are Netflix and Amazon, Microsoft and Google, and Microsoft and Salesforce. This follows intuition, as all of these stocks are software companies, and their correspondingly stock performances should behave similarly. As such, further diversification (outside of the tech and software industry, perhaps) may reduce risk with these assets since many of the chosen stocks are highly correlated with each other. 
+
+
+
+The loadings of the principal components are as follows, followed by the principal components analysis biplot and scree plot:
+
+
+```{r eval=T, tidy=T, echo=T, warning=F}
+# 5 PCA
+pca = prcomp(df[,3:17],
+             center = TRUE,
+            scale. = TRUE)
+#pca$rotation = -1*pca$rotation
+#pca$x = -1*pca$x  #reversing the signs of the scores
+pca$rotation
+
+biplot(pca, col = c("white", "deeppink3"))
+
+#calculate total variance explained by each principal component
+var_explained = pca$sdev^2 / sum(pca$sdev^2)
+
+#create scree plot
+qplot(c(1:15), var_explained) + 
+  geom_line() + 
+  xlab("Principal Component") + 
+  ylab("Variance Explained") +
+  ggtitle("Scree Plot") +
+  ylim(0, 1)
+```
+From the above results, it seems to appear that all the loadings of the first principal component are positive since the stocks are almost all positively correlated with each other. The principal components biplot seems to suggest that Starbucks and Coca-Cola behave similarly; Microsoft, Google, and Sony behave similarly; and Amazon and Salesforce behave similarly. These interpretations are intuitive, since Starbucks and Coca-Cola are both in the food and beverage industry; Microsoft, Google and Sony are all tech companies; and Amazon and Salesforce are also in the tech/software industry.
+
+Lastly, it seems that including only the first four principal components can explain the majority of the variance in the returns of this selection of 15 stocks.
+
+
+## Risk Management
+
+```{r eval=T, tidy=T, echo=T, warning=F}
+#Risk management
+
+# parametric VaR
+VaR = function(returns){
+  #return(100000 * pnorm(0.05, mean = mean(returns), sd = sd(returns)))
+  return(-100000 * (mean(returns) + sd(returns)*qnorm(0.05)))
+}
+
+print("VaR")
+
+VaR(df$JNJ)
+VaR(df$ABBV)
+VaR(df$AMZN)
+VaR(df$DIS)
+VaR(df$GE)
+VaR(df$GOOG)
+VaR(df$INTU)
+VaR(df$KO)
+VaR(df$MSFT)
+VaR(df$NFLX)
+VaR(df$SBUX)
+VaR(df$TSLA)
+VaR(df$SONY)
+VaR(df$BMY)
+VaR(df$CRM)
+
+
+print("ES")
+# parametric ES
+ES = function(returns){
+  return(100000 *(-mean(returns) + sd(returns) * ((dnorm(qnorm(0.05))) / 0.05)))
+
+}
+
+ES(df$JNJ)
+ES(df$ABBV)
+ES(df$AMZN)
+ES(df$DIS)
+ES(df$GE)
+ES(df$GOOG)
+ES(df$INTU)
+ES(df$KO)
+ES(df$MSFT)
+ES(df$NFLX)
+ES(df$SBUX)
+ES(df$TSLA)
+ES(df$SONY)
+ES(df$BMY)
+ES(df$CRM)
+
+
+# nonparametric VaR
+VaR_np = function(returns){
+  return(100000* -quantile(returns, 0.05))
+}
+
+# nonparametric ES
+ES_np = function(returns){
+  return(-100000*sum(returns[returns < quantile(returns, 0.05)])/length(returns[returns < quantile(returns, 0.05)]))
+}
+
+
+print("nonparametric VaR")
+np_var_vec = c()
+i = 1
+for(j in 3:ncol(df)){
+  print(VaR_np(df[,j]))
+  np_var_vec[i] = VaR_np(df[,j])
+  i = i + i
+}
+
+print("nonparametric ES")
+np_es_vec = c()
+i = 1
+for(j in 3:ncol(df)){
+  print(ES_np(df[,j]))
+  np_es_vec[i] = ES_np(df[,j])
+  i = i + 1
+}
+
+sort(np_var_vec, decreasing = TRUE)[1]  #highest VaR is TSLA
+sort(np_var_vec, decreasing = FALSE)[1]  #lowest VaR is KO
+
+sort(np_es_vec, decreasing = TRUE)[1]  #highest ES is NFLX
+sort(np_es_vec, decreasing = FALSE)[1]  #lowest ES is CRM
+
+
+```
+
+
+
+```{r eval=T, tidy=T, echo=T, warning=F}
+#bootstrapped confidence interval
+
+for(j in 3:ncol(df)){
+  boot_VaR_dist = c()
+  boot_ES_dist = c()
+  for(b in 1:10000){
+    boot_VaR_dist[b] = VaR_np(sample(df[,j], replace = TRUE))
+    boot_ES_dist[b] = ES_np(sample(df[,j], replace = TRUE))
+  }
+  #print(quantile(boot_VaR_dist, probs = c(0.025, 1-0.05/2), na.rm = TRUE))
+  #print(quantile(boot_ES_dist, probs = c(0.025, 1-0.05/2), na.rm = TRUE))
+  #print(round(sd(boot_VaR_dist),2))
+  print(round(sd(boot_ES_dist, na.rm = TRUE),2))
+}
+```
+
+
+
+
+## Copulas
+
+
+```{r eval=T, tidy=T, echo=T, warning=F}
+library(copula)
+n = nrow(df)
+
+edata= cbind(rank(df$JNJ)/(n+1), rank(df$ABBV)/(n+1), rank(df$AMZN)/(n+1), rank(df$DIS)/(n+1), rank(df$GE)/(n+1), rank(df$GOOG)/(n+1), rank(df$INTU)/(n+1), rank(df$KO)/(n+1), rank(df$MSFT)/(n+1), rank(df$NFLX)/(n+1), rank(df$SBUX)/(n+1), rank(df$TSLA)/(n+1), rank(df$SONY)/(n+1), rank(df$BMY)/(n+1), rank(df$CRM)/(n+1))
+
+#fitting various copulas
+#fit_t=fitCopula(copula=tCopula(dim=15, dispstr="un", df=30), data=edata, method="ml")
+fnorm = fitCopula(copula=normalCopula(dim=15),data=edata,method="ml")
+ffrank = fitCopula(copula = frankCopula(3, dim = 15),
+data = edata, method = "ml")
+fclayton = fitCopula(copula = claytonCopula(1, dim=15),
+data = edata, method = "ml")
+fgumbel = fitCopula(copula = gumbelCopula(3, dim=15),
+data = edata, method = "ml")
+fjoe = fitCopula(copula=joeCopula(2,dim=15),data=edata,method="ml")
+
+print(list(AIC(fnorm), AIC(ffrank), AIC(fclayton), AIC(fgumbel), AIC(fjoe)))
+```
