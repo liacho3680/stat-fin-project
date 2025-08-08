@@ -4,42 +4,42 @@ This repository contains the code, data, and results for Group 31’s Statistica
 ## Project Overview
 We analyzed historical monthly return data for 15 selected stocks to:
 
-Assess descriptive statistics, normality, and stationarity.
+- Assess descriptive statistics, normality, and stationarity.
 
-Construct and evaluate Minimum Variance and Tangency Portfolios.
+- Construct and evaluate Minimum Variance and Tangency Portfolios.
 
-Calculate Value-at-Risk (VaR) and Expected Shortfall (ES).
+- Calculate Value-at-Risk (VaR) and Expected Shortfall (ES).
 
-Perform Principal Component Analysis (PCA) for dimensionality reduction.
+- Perform Principal Component Analysis (PCA) for dimensionality reduction.
 
-Model joint dependencies using copulas.
+- Model joint dependencies using copulas.
 
 The work combines time series analysis, Markowitz portfolio theory, risk metrics, and multivariate modeling to gain insights into portfolio construction and asset risk.
 
 ## Key Findings
-Return Distributions: Most assets and the S&P 500 are approximately normally distributed with some stationarity.
+- Return Distributions: Most assets and the S&P 500 are approximately normally distributed with some stationarity.
 
-Tangency Portfolio:
+- Tangency Portfolio:
 
-Expected return: ~17.43%
+  - Expected return: ~17.43%
 
-Standard deviation: ~30.87%
+  - Standard deviation: ~30.87%
 
-Sharpe ratio: ~0.42
+  - Sharpe ratio: ~0.42
 
-Minimum Variance Portfolio (MVP): Lower VaR than most individual assets, with KO holding the largest weight.
+- Minimum Variance Portfolio (MVP): Lower VaR than most individual assets, with KO holding the largest weight.
 
-Risk Metrics:
+- Risk Metrics:
 
-Highest VaR: TSLA ($84,715.87)
+  - Highest VaR: TSLA ($84,715.87)
 
-Lowest VaR: KO ($26,945.52)
+  - Lowest VaR: KO ($26,945.52)
 
-Risk levels significantly reduced when combining the tangency portfolio with risk-free assets.
+  - Risk levels significantly reduced when combining the tangency portfolio with risk-free assets.
 
-PCA: First four principal components explain the majority of return variance.
+- PCA: First four principal components explain the majority of return variance.
 
-Copula Modeling: Normal copula provided the best fit for joint distribution.
+- Copula Modeling: Normal copula provided the best fit for joint distribution.
 
 ## Repository Structure
 ├── data/              # Raw and processed stock return data
@@ -49,33 +49,33 @@ Copula Modeling: Normal copula provided the best fit for joint distribution.
 └── README.md          # Project description
 
 ## Methods Used
-Statistical Tests: Augmented Dickey-Fuller for stationarity, normality checks
+- Statistical Tests: Augmented Dickey-Fuller for stationarity, normality checks
 
-Portfolio Optimization: Markowitz mean-variance framework, no-short-sales constraint, tangency portfolio construction
+- Portfolio Optimization: Markowitz mean-variance framework, no-short-sales constraint, tangency portfolio construction
 
-Risk Estimation: Parametric and nonparametric VaR & ES
+- Risk Estimation: Parametric and nonparametric VaR & ES
 
-Multivariate Analysis: PCA, correlation heatmaps
+- Multivariate Analysis: PCA, correlation heatmaps
 
-Dependency Modeling: Gaussian, Frank, Clayton, Gumbel, Joe copulas with AIC comparison
+- Dependency Modeling: Gaussian, Frank, Clayton, Gumbel, Joe copulas with AIC comparison
 
 ## Visualizations
 The analysis includes:
 
-Efficient frontier plots
+- Efficient frontier plots
 
-Equity curves
+- Equity curves
 
-Correlation heatmaps
+- Correlation heatmaps
 
-PCA biplots & scree plots
+- PCA biplots & scree plots
 
-VaR/ES comparison charts
+- VaR/ES comparison charts
 
 ## Authors
-Andre Z. Liu (azl2113)
+- Andre Liu (azl2113)
 
-Lia Cho (lc3683)
+- Lia Cho (lc3683)
 
 ## Course
 Statistical Methods in Finance – Department of Statistics, Columbia University, Spring 2023
