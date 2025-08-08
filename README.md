@@ -42,14 +42,14 @@ The work combines time series analysis, Markowitz portfolio theory, risk metrics
 - Copula Modeling: Normal copula provided the best fit for joint distribution.
 
 ## Repository Structure
-
+```
 /
 ├── data/              # Raw and processed stock return data
 ├── src/               # Analysis scripts (portfolio construction, VaR/ES, PCA, copulas)
 ├── results/           # Output tables, plots, and model results
 ├── report/            # Final project report (PDF)
 └── README.md          # Project description
-
+```
 
 ## Methods Used
 - Statistical Tests: Augmented Dickey-Fuller for stationarity, normality checks
